@@ -103,6 +103,9 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 -->
 
 ### **WORK IN PROGRESS**
+fix fix main file
+
+### 0.0.3 (2025-02-28)
 fix main file
 
 ### 0.0.2 (2025-02-28)

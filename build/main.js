@@ -21,96 +21,294 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
-var utils = __toESM(require("@iobroker/adapter-core"));
-class Nomosenergy extends utils.Adapter {
-  constructor(options = {}) {
-    super({
-      ...options,
-      name: "nomosenergy"
-    });
+var import_adapter_core = require("@iobroker/adapter-core");
+var import_axios = __toESM(require("axios"));
+class Nomosenergy extends import_adapter_core.Adapter {
+  updateInterval = null;
+  hourlyUpdateInterval = null;
+  constructor(options) {
+    super(options);
     this.on("ready", this.onReady.bind(this));
-    this.on("stateChange", this.onStateChange.bind(this));
     this.on("unload", this.onUnload.bind(this));
   }
-  /**
-   * Is called when databases are connected and adapter received configuration.
-   */
   async onReady() {
-    this.log.info("config option1: " + this.config.option1);
-    this.log.info("config option2: " + this.config.option2);
-    await this.setObjectNotExistsAsync("testVariable", {
+    await this.setObjectNotExistsAsync("info.last_update_time", {
       type: "state",
       common: {
-        name: "testVariable",
-        type: "boolean",
-        role: "indicator",
+        name: "Last update time",
+        type: "string",
+        role: "date",
         read: true,
-        write: true
+        write: false
       },
       native: {}
     });
-    this.subscribeStates("testVariable");
-    await this.setStateAsync("testVariable", true);
-    await this.setStateAsync("testVariable", { val: true, ack: true });
-    await this.setStateAsync("testVariable", { val: true, ack: true, expire: 30 });
-    let result = await this.checkPasswordAsync("admin", "iobroker");
-    this.log.info("check user admin pw iobroker: " + result);
-    result = await this.checkGroupAsync("admin", "admin");
-    this.log.info("check group user admin group admin: " + result);
+    await this.setObjectNotExistsAsync("info.last_update_success", {
+      type: "state",
+      common: {
+        name: "Last update success",
+        type: "boolean",
+        role: "indicator",
+        read: true,
+        write: false
+      },
+      native: {}
+    });
+    const updateData = async () => {
+      try {
+        const token = await this.authenticate();
+        const subscriptionId = await this.getSubscriptionId(token);
+        const priceData = await this.getPriceSeries(token, subscriptionId);
+        await this.storePrices(priceData);
+        await this.updateCurrentPrice();
+        await this.setStateAsync("info.last_update_time", (/* @__PURE__ */ new Date()).toISOString(), true);
+        await this.setStateAsync("info.last_update_success", true, true);
+        this.log.info("Data updated successfully");
+      } catch (error) {
+        await this.setStateAsync("info.last_update_success", false, true);
+        this.log.error(`Update failed: ${error.message || String(error)}`);
+      }
+    };
+    await updateData();
+    const now = /* @__PURE__ */ new Date();
+    const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1e3 - now.getSeconds() * 1e3 - now.getMilliseconds();
+    setTimeout(() => {
+      updateData();
+      this.updateInterval = setInterval(updateData, 60 * 60 * 1e3);
+    }, msUntilNextHour);
+    await this.updateCurrentPrice();
+    setTimeout(() => {
+      this.updateCurrentPrice();
+      this.hourlyUpdateInterval = setInterval(this.updateCurrentPrice.bind(this), 60 * 60 * 1e3);
+    }, msUntilNextHour);
   }
-  /**
-   * Is called when adapter shuts down - callback has to be called under any circumstances!
-   */
   onUnload(callback) {
     try {
+      if (this.updateInterval) {
+        clearInterval(this.updateInterval);
+        this.updateInterval = null;
+      }
+      if (this.hourlyUpdateInterval) {
+        clearInterval(this.hourlyUpdateInterval);
+        this.hourlyUpdateInterval = null;
+      }
       callback();
-    } catch (e) {
+    } catch {
       callback();
     }
   }
-  // If you need to react to object changes, uncomment the following block and the corresponding line in the constructor.
-  // You also need to subscribe to the objects with `this.subscribeObjects`, similar to `this.subscribeStates`.
-  // /**
-  //  * Is called if a subscribed object changes
-  //  */
-  // private onObjectChange(id: string, obj: ioBroker.Object | null | undefined): void {
-  // 	if (obj) {
-  // 		// The object was changed
-  // 		this.log.info(`object ${id} changed: ${JSON.stringify(obj)}`);
-  // 	} else {
-  // 		// The object was deleted
-  // 		this.log.info(`object ${id} deleted`);
-  // 	}
-  // }
-  /**
-   * Is called if a subscribed state changes
-   */
-  onStateChange(id, state) {
-    if (state) {
-      this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
-    } else {
-      this.log.info(`state ${id} deleted`);
+  async authenticate() {
+    const config = this.config;
+    if (!config.client_id || !config.client_secret) {
+      throw new Error("Client ID or Client Secret not configured");
+    }
+    const authString = Buffer.from(`${config.client_id}:${config.client_secret}`).toString("base64");
+    const headers = {
+      Authorization: `Basic ${authString}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    };
+    const data = "grant_type=client_credentials";
+    try {
+      const response = await import_axios.default.post(
+        "https://api.nomos.energy/oauth/token",
+        data,
+        { headers }
+      );
+      if (!response.data.access_token) {
+        throw new Error("No access token received");
+      }
+      return response.data.access_token;
+    } catch (error) {
+      throw new Error(`Authentication failed: ${error.message || String(error)}`);
     }
   }
-  // If you need to accept messages in your adapter, uncomment the following block and the corresponding line in the constructor.
-  // /**
-  //  * Some message was sent to this instance over message box. Used by email, pushover, text2speech, ...
-  //  * Using this method requires "common.messagebox" property to be set to true in io-package.json
-  //  */
-  // private onMessage(obj: ioBroker.Message): void {
-  // 	if (typeof obj === 'object' && obj.message) {
-  // 		if (obj.command === 'send') {
-  // 			// e.g. send email or pushover or whatever
-  // 			this.log.info('send command');
-  // 			// Send response in callback if required
-  // 			if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
-  // 		}
-  // 	}
-  // }
+  async getSubscriptionId(token) {
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    try {
+      const response = await import_axios.default.get(
+        "https://api.nomos.energy/subscriptions",
+        { headers }
+      );
+      const subscriptions = response.data.items;
+      if (!subscriptions || subscriptions.length === 0) {
+        throw new Error("No subscriptions found");
+      }
+      const subscriptionId = subscriptions[0].id;
+      this.log.info(`Using subscription ID: ${subscriptionId}`);
+      return subscriptionId;
+    } catch (error) {
+      throw new Error(`Failed to fetch subscriptions: ${error.message || String(error)}`);
+    }
+  }
+  async getPriceSeries(token, subscriptionId) {
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const tomorrow = new Date(Date.now() + 864e5).toISOString().split("T")[0];
+    const params = {
+      start: today,
+      end: tomorrow
+    };
+    const headers = {
+      Authorization: `Bearer ${token}`
+    };
+    try {
+      const response = await import_axios.default.get(
+        `https://api.nomos.energy/subscriptions/${subscriptionId}/prices`,
+        { headers, params }
+      );
+      return response.data;
+    } catch (error) {
+      throw new Error(`Failed to fetch price series: ${error.message || String(error)}`);
+    }
+  }
+  async storePrices(priceData) {
+    const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
+    const tomorrow = new Date(Date.now() + 864e5).toISOString().split("T")[0];
+    await this.setObjectNotExistsAsync("prices_today", {
+      type: "channel",
+      common: { name: "Prices for today" },
+      native: {}
+    });
+    await this.setObjectNotExistsAsync("prices_tomorrow", {
+      type: "channel",
+      common: { name: "Prices for tomorrow" },
+      native: {}
+    });
+    const items = priceData.items || [];
+    for (const item of items) {
+      const timestamp = item.timestamp;
+      const dateStr = timestamp.split("T")[0];
+      const hour = new Date(timestamp).getHours().toString();
+      const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
+      if (folder) {
+        const stateId = `${folder}.${hour}`;
+        await this.setObjectNotExistsAsync(stateId, {
+          type: "state",
+          common: {
+            name: `Price for hour ${hour}`,
+            type: "number",
+            role: "value",
+            unit: "ct/kWh",
+            read: true,
+            write: false
+          },
+          native: {}
+        });
+        await this.setStateAsync(stateId, item.amount, true);
+      }
+    }
+    const chartToday = /* @__PURE__ */ new Date();
+    chartToday.setHours(0, 0, 0, 0);
+    const xAxisData = [];
+    const seriesData = [];
+    for (let i = 0; i <= 48; i++) {
+      const currentDate = new Date(chartToday.getTime() + i * 36e5);
+      const day = currentDate.getDate().toString().padStart(2, "0");
+      const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
+      const hour = currentDate.getHours().toString().padStart(2, "0");
+      xAxisData.push(`${day}.${month}.
+${hour}:00`);
+      const matchingItem = items.find((item) => {
+        const itemDate = new Date(item.timestamp);
+        return itemDate.getTime() === currentDate.getTime();
+      });
+      seriesData.push(matchingItem ? matchingItem.amount : null);
+    }
+    const chartConfig = {
+      backgroundColor: "rgb(232, 232, 232)",
+      title: {
+        text: "Nomos Energy Price",
+        textStyle: {
+          color: "#ffffff"
+        }
+      },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: {
+          type: "cross"
+        }
+      },
+      grid: {
+        left: "10%",
+        right: "4%",
+        top: "8%",
+        bottom: "8%"
+      },
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+        data: xAxisData
+      },
+      yAxis: {
+        type: "value",
+        axisLabel: {
+          formatter: "{value} ct/kWh"
+        },
+        axisPointer: {
+          snap: true
+        }
+      },
+      visualMap: {
+        min: 0.2,
+        max: 0.3,
+        inRange: {
+          color: ["green", "yellow", "red"]
+        },
+        show: false
+      },
+      series: [
+        {
+          name: "Total",
+          type: "line",
+          step: "end",
+          symbol: "none",
+          data: seriesData,
+          markArea: {
+            itemStyle: {
+              color: "rgba(120, 200, 120, 0.2)"
+            },
+            data: [
+              [{ xAxis: "" }, { xAxis: "" }]
+            ]
+          }
+        }
+      ]
+    };
+    const chartConfigString = JSON.stringify(chartConfig);
+    await this.setObjectNotExistsAsync("prices.chart_config", {
+      type: "state",
+      common: {
+        name: "Chart configuration for prices",
+        type: "string",
+        role: "json",
+        read: true,
+        write: false
+      },
+      native: {}
+    });
+    await this.setStateAsync("prices.chart_config", chartConfigString, true);
+  }
+  async updateCurrentPrice() {
+    const now = /* @__PURE__ */ new Date();
+    const currentHour = now.getHours().toString();
+    const stateId = `prices_today.${currentHour}`;
+    await this.setObjectNotExistsAsync("prices.current_Price", {
+      type: "state",
+      common: {
+        name: "Current price",
+        type: "number",
+        role: "value",
+        unit: "ct/kWh",
+        read: true,
+        write: false
+      },
+      native: {}
+    });
+    const priceState = await this.getStateAsync(stateId);
+    const currentPrice = priceState && priceState.val !== null ? priceState.val : null;
+    await this.setStateAsync("prices.current_Price", currentPrice, true);
+  }
 }
-if (require.main !== module) {
-  module.exports = (options) => new Nomosenergy(options);
-} else {
-  (() => new Nomosenergy())();
-}
+module.exports = (options) => new Nomosenergy(options);
 //# sourceMappingURL=main.js.map

@@ -1,21 +1,35 @@
-"use strict";
+import { Adapter, AdapterOptions } from "@iobroker/adapter-core";
+import axios, { AxiosResponse } from "axios";
 
-const utils = require("@iobroker/adapter-core");
-const axios = require("axios");
+interface Config {
+    client_id?: string;
+    client_secret?: string;
+}
 
-class Nomosenergy extends utils.Adapter {
-    constructor(options = {}) {
-        super({
-            ...options,
-            name: "nomosenergy"
-        });
+interface PriceItem {
+    timestamp: string;
+    amount: number;
+}
+
+interface PriceData {
+    items: PriceItem[];
+}
+
+interface Subscription {
+    id: string;
+}
+
+class Nomosenergy extends Adapter {
+    private updateInterval: NodeJS.Timeout | null = null;
+    private hourlyUpdateInterval: NodeJS.Timeout | null = null;
+
+    constructor(options: AdapterOptions) {
+        super(options);
         this.on("ready", this.onReady.bind(this));
         this.on("unload", this.onUnload.bind(this));
-        this.updateInterval = null;
-        this.hourlyUpdateInterval = null;
     }
 
-    async onReady() {
+    private async onReady(): Promise<void> {
         await this.setObjectNotExistsAsync("info.last_update_time", {
             type: "state",
             common: {
@@ -39,26 +53,26 @@ class Nomosenergy extends utils.Adapter {
             native: {},
         });
 
-        const updateData = async () => {
+        const updateData = async (): Promise<void> => {
             try {
-                const token = await this.authenticate();
-                const subscriptionId = await this.getSubscriptionId(token);
-                const priceData = await this.getPriceSeries(token, subscriptionId);
+                const token: string = await this.authenticate();
+                const subscriptionId: string = await this.getSubscriptionId(token);
+                const priceData: PriceData = await this.getPriceSeries(token, subscriptionId);
                 await this.storePrices(priceData);
                 await this.updateCurrentPrice();
                 await this.setStateAsync("info.last_update_time", new Date().toISOString(), true);
                 await this.setStateAsync("info.last_update_success", true, true);
                 this.log.info("Data updated successfully");
-            } catch (error) {
+            } catch (error: unknown) {
                 await this.setStateAsync("info.last_update_success", false, true);
-                this.log.error("Update failed: " + error.message);
+                this.log.error(`Update failed: ${(error as Error).message || String(error)}`);
             }
         };
 
         await updateData();
 
-        const now = new Date();
-        const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+        const now: Date = new Date();
+        const msUntilNextHour: number = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
         setTimeout(() => {
             updateData();
             this.updateInterval = setInterval(updateData, 60 * 60 * 1000);
@@ -71,7 +85,7 @@ class Nomosenergy extends utils.Adapter {
         }, msUntilNextHour);
     }
 
-    onUnload(callback) {
+    private onUnload(callback: () => void): void {
         try {
             if (this.updateInterval) {
                 clearInterval(this.updateInterval);
@@ -82,55 +96,63 @@ class Nomosenergy extends utils.Adapter {
                 this.hourlyUpdateInterval = null;
             }
             callback();
-        } catch (e) {
+        } catch {
             callback();
         }
     }
 
-    async authenticate() {
-        if (!this.config.client_id || !this.config.client_secret) {
+    private async authenticate(): Promise<string> {
+        const config = this.config as Config;
+        if (!config.client_id || !config.client_secret) {
             throw new Error("Client ID or Client Secret not configured");
         }
 
-        const authString = Buffer.from(`${this.config.client_id}:${this.config.client_secret}`).toString("base64");
+        const authString: string = Buffer.from(`${config.client_id}:${config.client_secret}`).toString("base64");
         const headers = {
             Authorization: `Basic ${authString}`,
             "Content-Type": "application/x-www-form-urlencoded",
         };
-        const data = "grant_type=client_credentials";
+        const data: string = "grant_type=client_credentials";
 
         try {
-            const response = await axios.post("https://api.sandbox.nomos.energy/oauth/token", data, { headers });
+            const response: AxiosResponse<{ access_token: string }> = await axios.post(
+                "https://api.nomos.energy/oauth/token",
+                data,
+                { headers }
+            );
             if (!response.data.access_token) {
                 throw new Error("No access token received");
             }
             return response.data.access_token;
-        } catch (error) {
-            throw new Error(`Authentication failed: ${error.message}`);
+        } catch (error: unknown) {
+            throw new Error(`Authentication failed: ${(error as Error).message || String(error)}`);
         }
     }
 
-    async getSubscriptionId(token) {
+    private async getSubscriptionId(token: string): Promise<string> {
         const headers = {
             Authorization: `Bearer ${token}`,
         };
         try {
-            const response = await axios.get("https://api.sandbox.nomos.energy/subscriptions", { headers });
+            const response: AxiosResponse<{ items: Subscription[] }> = await axios.get(
+                "https://api.nomos.energy/subscriptions",
+                { headers }
+            );
             const subscriptions = response.data.items;
             if (!subscriptions || subscriptions.length === 0) {
                 throw new Error("No subscriptions found");
             }
-            const subscriptionId = subscriptions[0].id;
+            const subscriptionId: string = subscriptions[0].id;
             this.log.info(`Using subscription ID: ${subscriptionId}`);
             return subscriptionId;
-        } catch (error) {
-            throw new Error(`Failed to fetch subscriptions: ${error.message}`);
+        } catch (error: unknown) {
+            throw new Error(`Failed to fetch subscriptions: ${(error as Error).message || String(error)}`);
         }
     }
 
-    async getPriceSeries(token, subscriptionId) {
-        const today = new Date().toISOString().split("T")[0];
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    private async getPriceSeries(token: string, subscriptionId: string): Promise<PriceData> {
+        const today: string = new Date().toISOString().split("T")[0];
+        const tomorrow: string = new Date(Date.now() + 86400000).toISOString().split("T")[0];
         const params = {
             start: today,
             end: tomorrow,
@@ -139,19 +161,19 @@ class Nomosenergy extends utils.Adapter {
             Authorization: `Bearer ${token}`,
         };
         try {
-            const response = await axios.get(`https://api.sandbox.nomos.energy/subscriptions/${subscriptionId}/prices`, {
-                headers,
-                params,
-            });
+            const response: AxiosResponse<PriceData> = await axios.get(
+                `https://api.nomos.energy/subscriptions/${subscriptionId}/prices`,
+                { headers, params }
+            );
             return response.data;
-        } catch (error) {
-            throw new Error(`Failed to fetch price series: ${error.message}`);
+        } catch (error: unknown) {
+            throw new Error(`Failed to fetch price series: ${(error as Error).message || String(error)}`);
         }
     }
 
-    async storePrices(priceData) {
-        const today = new Date().toISOString().split("T")[0];
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    private async storePrices(priceData: PriceData): Promise<void> {
+        const today: string = new Date().toISOString().split("T")[0];
+        const tomorrow: string = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
         await this.setObjectNotExistsAsync("prices_today", {
             type: "channel",
@@ -164,14 +186,14 @@ class Nomosenergy extends utils.Adapter {
             native: {},
         });
 
-        const items = priceData.items || [];
+        const items: PriceItem[] = priceData.items || [];
         for (const item of items) {
-            const timestamp = item.timestamp;
-            const dateStr = timestamp.split("T")[0];
-            const hour = new Date(timestamp).getHours().toString();
-            const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
+            const timestamp: string = item.timestamp;
+            const dateStr: string = timestamp.split("T")[0];
+            const hour: string = new Date(timestamp).getHours().toString();
+            const folder: string | null = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
             if (folder) {
-                const stateId = `${folder}.${hour}`;
+                const stateId: string = `${folder}.${hour}`;
                 await this.setObjectNotExistsAsync(stateId, {
                     type: "state",
                     common: {
@@ -188,25 +210,25 @@ class Nomosenergy extends utils.Adapter {
             }
         }
 
-        const chartToday = new Date();
+        const chartToday: Date = new Date();
         chartToday.setHours(0, 0, 0, 0);
-        const xAxisData = [];
-        const seriesData = [];
+        const xAxisData: string[] = [];
+        const seriesData: (number | null)[] = [];
         for (let i = 0; i <= 48; i++) {
-            const currentDate = new Date(chartToday.getTime() + i * 3600000);
-            const day = currentDate.getDate().toString().padStart(2, "0");
-            const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
-            const hour = currentDate.getHours().toString().padStart(2, "0");
+            const currentDate: Date = new Date(chartToday.getTime() + i * 3600000);
+            const day: string = currentDate.getDate().toString().padStart(2, "0");
+            const month: string = (currentDate.getMonth() + 1).toString().padStart(2, "0");
+            const hour: string = currentDate.getHours().toString().padStart(2, "0");
             xAxisData.push(`${day}.${month}.\n${hour}:00`);
 
-            const matchingItem = items.find(item => {
-                const itemDate = new Date(item.timestamp);
+            const matchingItem: PriceItem | undefined = items.find((item: PriceItem) => {
+                const itemDate: Date = new Date(item.timestamp);
                 return itemDate.getTime() === currentDate.getTime();
             });
             seriesData.push(matchingItem ? matchingItem.amount : null);
         }
 
-        const chartConfig = {
+        const chartConfig: any = {
             backgroundColor: "rgb(232, 232, 232)",
             title: {
                 text: "Nomos Energy Price",
@@ -267,7 +289,7 @@ class Nomosenergy extends utils.Adapter {
             ]
         };
 
-        const chartConfigString = JSON.stringify(chartConfig);
+        const chartConfigString: string = JSON.stringify(chartConfig);
 
         await this.setObjectNotExistsAsync("prices.chart_config", {
             type: "state",
@@ -284,10 +306,10 @@ class Nomosenergy extends utils.Adapter {
         await this.setStateAsync("prices.chart_config", chartConfigString, true);
     }
 
-    async updateCurrentPrice() {
-        const now = new Date();
-        const currentHour = now.getHours().toString();
-        const stateId = `prices_today.${currentHour}`;
+    private async updateCurrentPrice(): Promise<void> {
+        const now: Date = new Date();
+        const currentHour: string = now.getHours().toString();
+        const stateId: string = `prices_today.${currentHour}`;
 
         await this.setObjectNotExistsAsync("prices.current_Price", {
             type: "state",
@@ -303,13 +325,9 @@ class Nomosenergy extends utils.Adapter {
         });
 
         const priceState = await this.getStateAsync(stateId);
-        const currentPrice = priceState && priceState.val !== null ? priceState.val : null;
+        const currentPrice: number | null = priceState && priceState.val !== null ? priceState.val as number : null;
         await this.setStateAsync("prices.current_Price", currentPrice, true);
     }
 }
 
-if (require.main !== module) {
-    module.exports = (options) => new Nomosenergy(options);
-} else {
-    (() => new Nomosenergy())();
-}
+export = (options: AdapterOptions): Nomosenergy => new Nomosenergy(options);
