@@ -1,0 +1,92 @@
+{
+	"common": {
+		"name": "nomosenergy",
+		"version": "0.0.1",
+		"news": {
+			"0.0.1": {
+				"en": "initial release",
+				"de": "Erstveröffentlichung",
+				"ru": "Начальная версия",
+				"pt": "lançamento inicial",
+				"nl": "Eerste uitgave",
+				"fr": "Première version",
+				"it": "Versione iniziale",
+				"es": "Versión inicial",
+				"pl": "Pierwsze wydanie",
+				"uk": "Початкова версія",
+				"zh-cn": "首次出版"
+			}
+		},
+		"titleLang": {
+			"en": "NomosEnergy",
+			"de": "Nomosenergie",
+			"ru": "Nomosenergy",
+			"pt": "Nomosenergy",
+			"nl": "Benoeming",
+			"fr": "Nomosénergie",
+			"it": "Nomosenergy",
+			"es": "Nomosenergia",
+			"pl": "Nomosenergy",
+			"uk": "Номосенергія",
+			"zh-cn": "nomosenergy"
+		},
+		"desc": {
+			"en": "iobroker adapter that pulls energy prices from nomos energy",
+			"de": "IOBROKER -Adapter, der die Energiepreise aus Nomos Energy zieht",
+			"ru": "адаптер iobroker, который вытаскивает цены на энергоносители от Nomos Energy",
+			"pt": "Adaptador de IoBroker que extrai os preços da energia da Nomos Energy",
+			"nl": "Iobroker -adapter die energieprijzen uit Nomos Energy haalt",
+			"fr": "adaptateur iobroker qui tire les prix de l'énergie de Nomos Energy",
+			"it": "Adattatore IoBroker che estrae i prezzi dell'energia da Nomos Energy",
+			"es": "Adaptador IOBROKER que extrae los precios de la energía de Nomos Energy",
+			"pl": "Adapter IOBRAKER, który wyciąga ceny energii z Nomos Energy",
+			"uk": "адаптер iobroker, який витягує ціни на енергію від Nomos Energy",
+			"zh-cn": "iobroker适配器从Nomos Energy中提取能源价格"
+		},
+		"authors": [
+			"michije <michije@gmail.com>"
+		],
+		"keywords": [
+			"ioBroker",
+			"template",
+			"Smart Home",
+			"home automation"
+		],
+		"licenseInformation": {
+			"type": "free",
+			"license": "MIT"
+		},
+		"platform": "Javascript/Node.js",
+		"icon": "nomosenergy.png",
+		"enabled": true,
+		"extIcon": "https://raw.githubusercontent.com/michije/ioBroker.nomosenergy/main/admin/nomosenergy.png",
+		"readme": "https://github.com/michije/ioBroker.nomosenergy/blob/main/README.md",
+		"loglevel": "info",
+		"tier": 3,
+		"mode": "daemon",
+		"type": "energy",
+		"compact": true,
+		"connectionType": "cloud",
+		"dataSource": "poll",
+		"adminUI": {
+			"config": "materialize"
+		},
+		"dependencies": [
+			{
+				"js-controller": ">=6.0.11"
+			}
+		],
+		"globalDependencies": [
+			{
+				"admin": ">=7.4.21"
+			}
+		]
+	},
+	"native": {
+		"client_id": "",
+		"client_secret": ""
+	},
+	"encryptedNative":["client_secret"],
+	"objects": [],
+	"instanceObjects": []
+}
