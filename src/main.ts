@@ -1,153 +1,315 @@
-/*
- * Created with @iobroker/create-adapter v2.6.5
- */
+"use strict";
 
-// The adapter-core module gives you access to the core ioBroker functions
-// you need to create an adapter
-import * as utils from '@iobroker/adapter-core';
-
-// Load your modules here, e.g.:
-// import * as fs from "fs";
+const utils = require("@iobroker/adapter-core");
+const axios = require("axios");
 
 class Nomosenergy extends utils.Adapter {
+    constructor(options = {}) {
+        super({
+            ...options,
+            name: "nomosenergy"
+        });
+        this.on("ready", this.onReady.bind(this));
+        this.on("unload", this.onUnload.bind(this));
+        this.updateInterval = null;
+        this.hourlyUpdateInterval = null;
+    }
 
-	public constructor(options: Partial<utils.AdapterOptions> = {}) {
-		super({
-			...options,
-			name: 'nomosenergy',
-		});
-		this.on('ready', this.onReady.bind(this));
-		this.on('stateChange', this.onStateChange.bind(this));
-		// this.on('objectChange', this.onObjectChange.bind(this));
-		// this.on('message', this.onMessage.bind(this));
-		this.on('unload', this.onUnload.bind(this));
-	}
+    async onReady() {
+        await this.setObjectNotExistsAsync("info.last_update_time", {
+            type: "state",
+            common: {
+                name: "Last update time",
+                type: "string",
+                role: "date",
+                read: true,
+                write: false,
+            },
+            native: {},
+        });
+        await this.setObjectNotExistsAsync("info.last_update_success", {
+            type: "state",
+            common: {
+                name: "Last update success",
+                type: "boolean",
+                role: "indicator",
+                read: true,
+                write: false,
+            },
+            native: {},
+        });
 
-	/**
-	 * Is called when databases are connected and adapter received configuration.
-	 */
-	private async onReady(): Promise<void> {
-		// Initialize your adapter here
+        const updateData = async () => {
+            try {
+                const token = await this.authenticate();
+                const subscriptionId = await this.getSubscriptionId(token);
+                const priceData = await this.getPriceSeries(token, subscriptionId);
+                await this.storePrices(priceData);
+                await this.updateCurrentPrice();
+                await this.setStateAsync("info.last_update_time", new Date().toISOString(), true);
+                await this.setStateAsync("info.last_update_success", true, true);
+                this.log.info("Data updated successfully");
+            } catch (error) {
+                await this.setStateAsync("info.last_update_success", false, true);
+                this.log.error("Update failed: " + error.message);
+            }
+        };
 
-		// The adapters config (in the instance object everything under the attribute "native") is accessible via
-		// this.config:
-		this.log.info('config option1: ' + this.config.option1);
-		this.log.info('config option2: ' + this.config.option2);
+        await updateData();
 
-		/*
-		For every state in the system there has to be also an object of type state
-		Here a simple template for a boolean variable named "testVariable"
-		Because every adapter instance uses its own unique namespace variable names can't collide with other adapters variables
-		*/
-		await this.setObjectNotExistsAsync('testVariable', {
-			type: 'state',
-			common: {
-				name: 'testVariable',
-				type: 'boolean',
-				role: 'indicator',
-				read: true,
-				write: true,
-			},
-			native: {},
-		});
+        const now = new Date();
+        const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+        setTimeout(() => {
+            updateData();
+            this.updateInterval = setInterval(updateData, 60 * 60 * 1000);
+        }, msUntilNextHour);
 
-		// In order to get state updates, you need to subscribe to them. The following line adds a subscription for our variable we have created above.
-		this.subscribeStates('testVariable');
-		// You can also add a subscription for multiple states. The following line watches all states starting with "lights."
-		// this.subscribeStates('lights.*');
-		// Or, if you really must, you can also watch all states. Don't do this if you don't need to. Otherwise this will cause a lot of unnecessary load on the system:
-		// this.subscribeStates('*');
+        await this.updateCurrentPrice();
+        setTimeout(() => {
+            this.updateCurrentPrice();
+            this.hourlyUpdateInterval = setInterval(this.updateCurrentPrice.bind(this), 60 * 60 * 1000);
+        }, msUntilNextHour);
+    }
 
-		/*
-			setState examples
-			you will notice that each setState will cause the stateChange event to fire (because of above subscribeStates cmd)
-		*/
-		// the variable testVariable is set to true as command (ack=false)
-		await this.setStateAsync('testVariable', true);
+    onUnload(callback) {
+        try {
+            if (this.updateInterval) {
+                clearInterval(this.updateInterval);
+                this.updateInterval = null;
+            }
+            if (this.hourlyUpdateInterval) {
+                clearInterval(this.hourlyUpdateInterval);
+                this.hourlyUpdateInterval = null;
+            }
+            callback();
+        } catch (e) {
+            callback();
+        }
+    }
 
-		// same thing, but the value is flagged "ack"
-		// ack should be always set to true if the value is received from or acknowledged from the target system
-		await this.setStateAsync('testVariable', { val: true, ack: true });
+    async authenticate() {
+        if (!this.config.client_id || !this.config.client_secret) {
+            throw new Error("Client ID or Client Secret not configured");
+        }
 
-		// same thing, but the state is deleted after 30s (getState will return null afterwards)
-		await this.setStateAsync('testVariable', { val: true, ack: true, expire: 30 });
+        const authString = Buffer.from(`${this.config.client_id}:${this.config.client_secret}`).toString("base64");
+        const headers = {
+            Authorization: `Basic ${authString}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+        };
+        const data = "grant_type=client_credentials";
 
-		// examples for the checkPassword/checkGroup functions
-		let result = await this.checkPasswordAsync('admin', 'iobroker');
-		this.log.info('check user admin pw iobroker: ' + result);
+        try {
+            const response = await axios.post("https://api.nomos.energy/oauth/token", data, { headers });
+            if (!response.data.access_token) {
+                throw new Error("No access token received");
+            }
+            return response.data.access_token;
+        } catch (error) {
+            throw new Error(`Authentication failed: ${error.message}`);
+        }
+    }
 
-		result = await this.checkGroupAsync('admin', 'admin');
-		this.log.info('check group user admin group admin: ' + result);
-	}
+    async getSubscriptionId(token) {
+        const headers = {
+            Authorization: `Bearer ${token}`,
+        };
+        try {
+            const response = await axios.get("https://api.nomos.energy/subscriptions", { headers });
+            const subscriptions = response.data.items;
+            if (!subscriptions || subscriptions.length === 0) {
+                throw new Error("No subscriptions found");
+            }
+            const subscriptionId = subscriptions[0].id;
+            this.log.info(`Using subscription ID: ${subscriptionId}`);
+            return subscriptionId;
+        } catch (error) {
+            throw new Error(`Failed to fetch subscriptions: ${error.message}`);
+        }
+    }
 
-	/**
-	 * Is called when adapter shuts down - callback has to be called under any circumstances!
-	 */
-	private onUnload(callback: () => void): void {
-		try {
-			// Here you must clear all timeouts or intervals that may still be active
-			// clearTimeout(timeout1);
-			// clearTimeout(timeout2);
-			// ...
-			// clearInterval(interval1);
+    async getPriceSeries(token, subscriptionId) {
+        const today = new Date().toISOString().split("T")[0];
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+        const params = {
+            start: today,
+            end: tomorrow,
+        };
+        const headers = {
+            Authorization: `Bearer ${token}`,
+        };
+        try {
+            const response = await axios.get(`https://api.nomos.energy/subscriptions/${subscriptionId}/prices`, {
+                headers,
+                params,
+            });
+            return response.data;
+        } catch (error) {
+            throw new Error(`Failed to fetch price series: ${error.message}`);
+        }
+    }
 
-			callback();
-		} catch (e) {
-			callback();
-		}
-	}
+    async storePrices(priceData) {
+        const today = new Date().toISOString().split("T")[0];
+        const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-	// If you need to react to object changes, uncomment the following block and the corresponding line in the constructor.
-	// You also need to subscribe to the objects with `this.subscribeObjects`, similar to `this.subscribeStates`.
-	// /**
-	//  * Is called if a subscribed object changes
-	//  */
-	// private onObjectChange(id: string, obj: ioBroker.Object | null | undefined): void {
-	// 	if (obj) {
-	// 		// The object was changed
-	// 		this.log.info(`object ${id} changed: ${JSON.stringify(obj)}`);
-	// 	} else {
-	// 		// The object was deleted
-	// 		this.log.info(`object ${id} deleted`);
-	// 	}
-	// }
+        await this.setObjectNotExistsAsync("prices_today", {
+            type: "channel",
+            common: { name: "Prices for today" },
+            native: {},
+        });
+        await this.setObjectNotExistsAsync("prices_tomorrow", {
+            type: "channel",
+            common: { name: "Prices for tomorrow" },
+            native: {},
+        });
 
-	/**
-	 * Is called if a subscribed state changes
-	 */
-	private onStateChange(id: string, state: ioBroker.State | null | undefined): void {
-		if (state) {
-			// The state was changed
-			this.log.info(`state ${id} changed: ${state.val} (ack = ${state.ack})`);
-		} else {
-			// The state was deleted
-			this.log.info(`state ${id} deleted`);
-		}
-	}
+        const items = priceData.items || [];
+        for (const item of items) {
+            const timestamp = item.timestamp;
+            const dateStr = timestamp.split("T")[0];
+            const hour = new Date(timestamp).getHours().toString();
+            const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
+            if (folder) {
+                const stateId = `${folder}.${hour}`;
+                await this.setObjectNotExistsAsync(stateId, {
+                    type: "state",
+                    common: {
+                        name: `Price for hour ${hour}`,
+                        type: "number",
+                        role: "value",
+                        unit: "ct/kWh",
+                        read: true,
+                        write: false,
+                    },
+                    native: {},
+                });
+                await this.setStateAsync(stateId, item.amount, true);
+            }
+        }
 
-	// If you need to accept messages in your adapter, uncomment the following block and the corresponding line in the constructor.
-	// /**
-	//  * Some message was sent to this instance over message box. Used by email, pushover, text2speech, ...
-	//  * Using this method requires "common.messagebox" property to be set to true in io-package.json
-	//  */
-	// private onMessage(obj: ioBroker.Message): void {
-	// 	if (typeof obj === 'object' && obj.message) {
-	// 		if (obj.command === 'send') {
-	// 			// e.g. send email or pushover or whatever
-	// 			this.log.info('send command');
+        const chartToday = new Date();
+        chartToday.setHours(0, 0, 0, 0);
+        const xAxisData = [];
+        const seriesData = [];
+        for (let i = 0; i <= 48; i++) {
+            const currentDate = new Date(chartToday.getTime() + i * 3600000);
+            const day = currentDate.getDate().toString().padStart(2, "0");
+            const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
+            const hour = currentDate.getHours().toString().padStart(2, "0");
+            xAxisData.push(`${day}.${month}.\n${hour}:00`);
 
-	// 			// Send response in callback if required
-	// 			if (obj.callback) this.sendTo(obj.from, obj.command, 'Message received', obj.callback);
-	// 		}
-	// 	}
-	// }
+            const matchingItem = items.find(item => {
+                const itemDate = new Date(item.timestamp);
+                return itemDate.getTime() === currentDate.getTime();
+            });
+            seriesData.push(matchingItem ? matchingItem.amount : null);
+        }
 
+        const chartConfig = {
+            backgroundColor: "rgb(232, 232, 232)",
+            title: {
+                text: "Nomos Energy Price",
+                textStyle: {
+                    color: "#ffffff"
+                }
+            },
+            tooltip: {
+                trigger: "axis",
+                axisPointer: {
+                    type: "cross"
+                }
+            },
+            grid: {
+                left: "10%",
+                right: "4%",
+                top: "8%",
+                bottom: "8%"
+            },
+            xAxis: {
+                type: "category",
+                boundaryGap: false,
+                data: xAxisData
+            },
+            yAxis: {
+                type: "value",
+                axisLabel: {
+                    formatter: "{value} ct/kWh"
+                },
+                axisPointer: {
+                    snap: true
+                }
+            },
+            visualMap: {
+                min: 0.2,
+                max: 0.3,
+                inRange: {
+                    color: ["green", "yellow", "red"]
+                },
+                show: false
+            },
+            series: [
+                {
+                    name: "Total",
+                    type: "line",
+                    step: "end",
+                    symbol: "none",
+                    data: seriesData,
+                    markArea: {
+                        itemStyle: {
+                            color: "rgba(120, 200, 120, 0.2)"
+                        },
+                        data: [
+                            [{ xAxis: "" }, { xAxis: "" }]
+                        ]
+                    }
+                }
+            ]
+        };
+
+        const chartConfigString = JSON.stringify(chartConfig);
+
+        await this.setObjectNotExistsAsync("prices.chart_config", {
+            type: "state",
+            common: {
+                name: "Chart configuration for prices",
+                type: "string",
+                role: "json",
+                read: true,
+                write: false
+            },
+            native: {}
+        });
+
+        await this.setStateAsync("prices.chart_config", chartConfigString, true);
+    }
+
+    async updateCurrentPrice() {
+        const now = new Date();
+        const currentHour = now.getHours().toString();
+        const stateId = `prices_today.${currentHour}`;
+
+        await this.setObjectNotExistsAsync("prices.current_Price", {
+            type: "state",
+            common: {
+                name: "Current price",
+                type: "number",
+                role: "value",
+                unit: "ct/kWh",
+                read: true,
+                write: false
+            },
+            native: {}
+        });
+
+        const priceState = await this.getStateAsync(stateId);
+        const currentPrice = priceState && priceState.val !== null ? priceState.val : null;
+        await this.setStateAsync("prices.current_Price", currentPrice, true);
+    }
 }
 
 if (require.main !== module) {
-	// Export the constructor in compact mode
-	module.exports = (options: Partial<utils.AdapterOptions> | undefined) => new Nomosenergy(options);
+    module.exports = (options) => new Nomosenergy(options);
 } else {
-	// otherwise start the instance directly
-	(() => new Nomosenergy())();
+    (() => new Nomosenergy())();
 }
