@@ -2,6 +2,7 @@
   "common": {
     "name": "nomosenergy",
     "version": "0.0.4",
+    "main": "build/main.js",
     "news": {
       "0.0.4": {
         "en": "fix fix main file",

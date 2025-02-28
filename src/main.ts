@@ -24,10 +24,11 @@ class Nomosenergy extends Adapter {
     private hourlyUpdateInterval: NodeJS.Timeout | null = null;
 
     constructor(options: AdapterOptions) {
-        super(options);
-        this.log.debug("Constructor called with options: " + JSON.stringify(options));
-        this.on("ready", this.onReady.bind(this));
-        this.on("unload", this.onUnload.bind(this));
+    console.log("Constructor called with options: ", options); // Temporäres Log
+    super(options);
+    this.log.debug("Constructor called with options: " + JSON.stringify(options));
+    this.on("ready", this.onReady.bind(this));
+    this.on("unload", this.onUnload.bind(this));
     }
 
     private async onReady(): Promise<void> {
@@ -398,3 +399,12 @@ class Nomosenergy extends Adapter {
 }
 
 export = (options: AdapterOptions): Nomosenergy => new Nomosenergy(options);
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+});

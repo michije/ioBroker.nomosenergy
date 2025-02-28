@@ -27,6 +27,7 @@ class Nomosenergy extends import_adapter_core.Adapter {
   updateInterval = null;
   hourlyUpdateInterval = null;
   constructor(options) {
+    console.log("Constructor called with options: ", options);
     super(options);
     this.log.debug("Constructor called with options: " + JSON.stringify(options));
     this.on("ready", this.onReady.bind(this));
@@ -375,5 +376,13 @@ ${hour}:00`);
     this.log.debug("updateCurrentPrice completed");
   }
 }
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+  process.exit(1);
+});
 module.exports = (options) => new Nomosenergy(options);
 //# sourceMappingURL=main.js.map
