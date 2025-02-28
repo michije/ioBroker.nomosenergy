@@ -100,7 +100,7 @@ class Nomosenergy extends utils.Adapter {
         const data = "grant_type=client_credentials";
 
         try {
-            const response = await axios.post("https://api.nomos.energy/oauth/token", data, { headers });
+            const response = await axios.post("https://api.sandbox.nomos.energy/oauth/token", data, { headers });
             if (!response.data.access_token) {
                 throw new Error("No access token received");
             }
@@ -115,7 +115,7 @@ class Nomosenergy extends utils.Adapter {
             Authorization: `Bearer ${token}`,
         };
         try {
-            const response = await axios.get("https://api.nomos.energy/subscriptions", { headers });
+            const response = await axios.get("https://api.sandbox.nomos.energy/subscriptions", { headers });
             const subscriptions = response.data.items;
             if (!subscriptions || subscriptions.length === 0) {
                 throw new Error("No subscriptions found");
@@ -139,7 +139,7 @@ class Nomosenergy extends utils.Adapter {
             Authorization: `Bearer ${token}`,
         };
         try {
-            const response = await axios.get(`https://api.nomos.energy/subscriptions/${subscriptionId}/prices`, {
+            const response = await axios.get(`https://api.sandbox.nomos.energy/subscriptions/${subscriptionId}/prices`, {
                 headers,
                 params,
             });
