@@ -1,8 +1,21 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.0.3",
+    "version": "0.0.4",
     "news": {
+      "0.0.4": {
+        "en": "fix fix main file",
+        "de": "fix hauptdatei",
+        "ru": "исправить основной файл",
+        "pt": "corrigir o arquivo principal",
+        "nl": "fix hoofdbestand",
+        "fr": "correction du fichier principal",
+        "it": "correzione file principale",
+        "es": "arreglar archivo principal",
+        "pl": "naprawić plik główny",
+        "uk": "виправити виправити файл",
+        "zh-cn": "修复主文件"
+      },
       "0.0.3": {
         "en": "fix main file",
         "de": "hauptdatei reparieren",

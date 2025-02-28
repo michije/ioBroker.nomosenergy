@@ -101,8 +101,7 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
-
-### **WORK IN PROGRESS**
+### 0.0.4 (2025-02-28)
 fix fix main file
 
 ### 0.0.3 (2025-02-28)
