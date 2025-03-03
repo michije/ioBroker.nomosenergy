@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.0.4",
+    "version": "0.1.0",
     "main": "build/main.js",
     "news": {
+      "0.1.0": {
+        "en": "change endpoint from sandbox to prod",
+        "de": "endpunkt von sandbox zu prod",
+        "ru": "изменить конечную точку с песочницы на prod",
+        "pt": "mudança endpoint de sandbox para prod",
+        "nl": "verandering eindpunt van sandbox naar prod",
+        "fr": "changer le paramètre de la boîte à sable en prod",
+        "it": "cambiare endpoint da sandbox a prod",
+        "es": "cambiar punto final de sandbox a prod",
+        "pl": "zmiana punktu końcowego z piaskownicy na prod",
+        "uk": "змінити кінцеву точку з пісочниці для проду",
+        "zh-cn": "从沙盒更改端点为 prod"
+      },
       "0.0.4": {
         "en": "fix fix main file",
         "de": "fix hauptdatei",
