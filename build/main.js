@@ -116,7 +116,7 @@ class Nomosenergy extends utils.Adapter {
     const data = "grant_type=client_credentials";
     try {
       const response = await import_axios.default.post(
-        "https://api.sandbox.nomos.energy/oauth/token",
+        "https://api.nomos.energy/oauth/token",
         data,
         { headers }
       );
@@ -134,7 +134,7 @@ class Nomosenergy extends utils.Adapter {
     };
     try {
       const response = await import_axios.default.get(
-        "https://api.sandbox.nomos.energy/subscriptions",
+        "https://api.nomos.energy/subscriptions",
         { headers }
       );
       const subscriptions = response.data.items;
@@ -160,7 +160,7 @@ class Nomosenergy extends utils.Adapter {
     };
     try {
       const response = await import_axios.default.get(
-        `https://api.sandbox.nomos.energy/subscriptions/${subscriptionId}/prices`,
+        `https://api.nomos.energy/subscriptions/${subscriptionId}/prices`,
         { headers, params }
       );
       return response.data;
