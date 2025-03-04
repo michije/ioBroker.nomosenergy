@@ -185,7 +185,7 @@ class Nomosenergy extends utils.Adapter {
     for (const item of items) {
       const timestamp = item.timestamp;
       const dateStr = timestamp.split("T")[0];
-      const hour = new Date(timestamp).getHours().toString();
+      const hour = new Date(timestamp).getUTCHours().toString();
       const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
       if (folder) {
         const stateId = `${folder}.${hour}`;
@@ -205,19 +205,19 @@ class Nomosenergy extends utils.Adapter {
       }
     }
     const chartToday = /* @__PURE__ */ new Date();
-    chartToday.setHours(0, 0, 0, 0);
+    chartToday.setUTCHours(0, 0, 0, 0);
     const xAxisData = [];
     const seriesData = [];
     for (let i = 0; i <= 48; i++) {
       const currentDate = new Date(chartToday.getTime() + i * 36e5);
-      const day = currentDate.getDate().toString().padStart(2, "0");
-      const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
-      const hour = currentDate.getHours().toString().padStart(2, "0");
+      const day = currentDate.getUTCDate().toString().padStart(2, "0");
+      const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, "0");
+      const hour = currentDate.getUTCHours().toString().padStart(2, "0");
       xAxisData.push(`${day}.${month}.
 ${hour}:00`);
       const matchingItem = items.find((item) => {
         const itemDate = new Date(item.timestamp);
-        return itemDate.getTime() === currentDate.getTime();
+        return itemDate.getUTCFullYear() === currentDate.getUTCFullYear() && itemDate.getUTCMonth() === currentDate.getUTCMonth() && itemDate.getUTCDate() === currentDate.getUTCDate() && itemDate.getUTCHours() === currentDate.getUTCHours();
       });
       seriesData.push(matchingItem ? matchingItem.amount : null);
     }
@@ -236,10 +236,10 @@ ${hour}:00`);
         }
       },
       grid: {
-        left: "5%",
-        right: "4%",
-        top: "5%",
-        bottom: "8%"
+        left: "17%",
+        right: "1%",
+        top: "2%",
+        bottom: "12%"
       },
       xAxis: {
         type: "category",
