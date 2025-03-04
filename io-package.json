@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "main": "build/main.js",
     "news": {
+      "0.1.1": {
+        "en": "fix alignment topics",
+        "de": "fixe ausrichtungsthemen",
+        "ru": "фиксировать темы выравнивания",
+        "pt": "corrigir tópicos de alinhamento",
+        "nl": "uitlijningsonderwerpen oplossen",
+        "fr": "fixer les sujets d'alignement",
+        "it": "correggere gli argomenti di allineamento",
+        "es": "temas de alineación",
+        "pl": "ustaw tematy osiowania",
+        "uk": "виправлено теми вирівнювання",
+        "zh-cn": "固定对齐话题"
+      },
       "0.1.0": {
         "en": "change endpoint from sandbox to prod",
         "de": "endpunkt von sandbox zu prod",
