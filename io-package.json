@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "main": "build/main.js",
     "news": {
+      "0.1.3": {
+        "en": "re-create package lock",
+        "de": "paketverriegelung neu erstellen",
+        "ru": "восстановление блокировки пакетов",
+        "pt": "re-criar bloqueio de pacote",
+        "nl": "pakketslot opnieuw aanmaken",
+        "fr": "recréer le verrouillage du paquet",
+        "it": "ri-creare blocco pacchetto",
+        "es": "re-crear la cerradura del paquete",
+        "pl": "odtworzyć blokadę pakietu",
+        "uk": "відтворити замок пакета",
+        "zh-cn": "重新创建软件包锁"
+      },
       "0.1.2": {
         "en": "re-run release",
         "de": "re-run release",
@@ -81,19 +94,6 @@
         "pl": "początkowe zwolnienie",
         "uk": "початковий реліз",
         "zh-cn": "初步释放"
-      },
-      "0.0.1": {
-        "en": "initial release",
-        "de": "Erstveröffentlichung",
-        "ru": "Начальная версия",
-        "pt": "lançamento inicial",
-        "nl": "Eerste uitgave",
-        "fr": "Première version",
-        "it": "Versione iniziale",
-        "es": "Versión inicial",
-        "pl": "Pierwsze wydanie",
-        "uk": "Початкова версія",
-        "zh-cn": "首次出版"
       }
     },
     "titleLang": {
