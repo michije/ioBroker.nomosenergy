@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "main": "build/main.js",
     "news": {
+      "0.1.2": {
+        "en": "re-run release",
+        "de": "re-run release",
+        "ru": "повторное высвобождение",
+        "pt": "lançamento de novo",
+        "nl": "re-run release",
+        "fr": "nouveau lancement",
+        "it": "rilascio re-run",
+        "es": "re-run release",
+        "pl": "ponowne uruchomienie",
+        "uk": "реліз",
+        "zh-cn": "重运行发行"
+      },
       "0.1.1": {
         "en": "fix alignment topics",
         "de": "fixe ausrichtungsthemen",
