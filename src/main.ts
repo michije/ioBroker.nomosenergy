@@ -271,150 +271,157 @@ class Nomosenergy extends utils.Adapter {
     }
 
     async storePrices(priceData: PriceData): Promise<void> {
-        const today = new Date().toISOString().split("T")[0];
-        const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
+    const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
-        await this.setObjectNotExistsAsync("prices_today", {
-            type: "channel",
-            common: { name: "Prices for today" },
-            native: {},
-        });
+    await this.setObjectNotExistsAsync("prices_today", {
+        type: "channel",
+        common: { name: "Prices for today" },
+        native: {},
+    });
 
-        await this.setObjectNotExistsAsync("prices_tomorrow", {
-            type: "channel",
-            common: { name: "Prices for tomorrow" },
-            native: {},
-        });
+    await this.setObjectNotExistsAsync("prices_tomorrow", {
+        type: "channel",
+        common: { name: "Prices for tomorrow" },
+        native: {},
+    });
 
-        const items = priceData.items || [];
+    const items = priceData.items || [];
 
-        for (const item of items) {
-            const timestamp = item.timestamp;
-            const dateStr = timestamp.split("T")[0];
-            const hour = new Date(timestamp).getHours().toString();
-            const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
+    // Store individual price states
+    for (const item of items) {
+        const timestamp = item.timestamp;
+        const dateStr = timestamp.split("T")[0];
+        const hour = new Date(timestamp).getUTCHours().toString(); // Use UTC hours
+        const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
 
-            if (folder) {
-                const stateId = `${folder}.${hour}`;
-                await this.setObjectNotExistsAsync(stateId, {
-                    type: "state",
-                    common: {
-                        name: `Price for hour ${hour}`,
-                        type: "number",
-                        role: "value",
-                        unit: "ct/kWh",
-                        read: true,
-                        write: false,
-                    },
-                    native: {},
-                });
-
-                await this.setStateAsync(stateId, item.amount, true);
-            }
-        }
-
-        const chartToday = new Date();
-        chartToday.setHours(0, 0, 0, 0);
-
-        const xAxisData: string[] = [];
-        const seriesData: (number | null)[] = [];
-
-        for (let i = 0; i <= 48; i++) {
-            const currentDate = new Date(chartToday.getTime() + i * 3600000);
-            const day = currentDate.getDate().toString().padStart(2, "0");
-            const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
-            const hour = currentDate.getHours().toString().padStart(2, "0");
-
-            xAxisData.push(`${day}.${month}.\n${hour}:00`);
-
-            const matchingItem = items.find(item => {
-                const itemDate = new Date(item.timestamp);
-                return itemDate.getTime() === currentDate.getTime();
+        if (folder) {
+            const stateId = `${folder}.${hour}`;
+            await this.setObjectNotExistsAsync(stateId, {
+                type: "state",
+                common: {
+                    name: `Price for hour ${hour}`,
+                    type: "number",
+                    role: "value",
+                    unit: "ct/kWh",
+                    read: true,
+                    write: false,
+                },
+                native: {},
             });
 
-            seriesData.push(matchingItem ? matchingItem.amount : null);
+            await this.setStateAsync(stateId, item.amount, true);
         }
+    }
 
-        const chartConfig: ChartConfig = {
-            backgroundColor: "rgb(232, 232, 232)",
-            title: {
-                text: "Nomos Energy Price",
-                textStyle: {
-                    color: "#ffffff"
-                }
-            },
-            tooltip: {
-                trigger: "axis",
-                axisPointer: {
-                    type: "cross"
-                }
-            },
-            grid: {
-                left: "5%",
-                right: "4%",
-                top: "5%",
-                bottom: "8%"
-            },
-            xAxis: {
-                type: "category",
-                boundaryGap: false,
-                data: xAxisData
-            },
-            yAxis: {
-                type: "value",
-                axisLabel: {
-                    formatter: "{value} ct/kWh"
-                },
-                axisPointer: {
-                    snap: true
-                }
-            },
-            visualMap: {
-                min: 0.2,
-                max: 0.3,
-                inRange: {
-                    color: ["green", "yellow", "red"]
-                },
-                show: false
-            },
-            series: [
-                {
-                    name: "Total",
-                    type: "line",
-                    step: "end",
-                    symbol: "none",
-                    data: seriesData,
-                    markArea: {
-                        itemStyle: {
-                            color: "rgba(120, 200, 120, 0.2)"
-                        },
-                        data: [
-                            [
-                                { xAxis: "" },
-                                { xAxis: "" }
-                            ]
-                        ]
-                    }
-                }
-            ]
-        };
+    // Generate chart data starting from today at 00:00 UTC
+    const chartToday = new Date();
+    chartToday.setUTCHours(0, 0, 0, 0); // Start of today in UTC
 
-        const chartConfigString = JSON.stringify(chartConfig);
+    const xAxisData: string[] = [];
+    const seriesData: (number | null)[] = [];
 
-        await this.setObjectNotExistsAsync("prices.chart_config", {
-            type: "state",
-            common: {
-                name: "Chart configuration for prices",
-                type: "string",
-                role: "json",
-                read: true,
-                write: false
-            },
-            native: {}
+    for (let i = 0; i <= 48; i++) {
+        const currentDate = new Date(chartToday.getTime() + i * 3600000);
+        const day = currentDate.getUTCDate().toString().padStart(2, "0");
+        const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, "0");
+        const hour = currentDate.getUTCHours().toString().padStart(2, "0");
+
+        xAxisData.push(`${day}.${month}.\n${hour}:00`);
+
+        const matchingItem = items.find(item => {
+            const itemDate = new Date(item.timestamp);
+            return (
+                itemDate.getUTCFullYear() === currentDate.getUTCFullYear() &&
+                itemDate.getUTCMonth() === currentDate.getUTCMonth() &&
+                itemDate.getUTCDate() === currentDate.getUTCDate() &&
+                itemDate.getUTCHours() === currentDate.getUTCHours()
+            );
         });
 
-        await this.setStateAsync("prices.chart_config", chartConfigString, true);
+        seriesData.push(matchingItem ? matchingItem.amount : null);
     }
+
+    const chartConfig: ChartConfig = {
+        backgroundColor: "rgb(232, 232, 232)",
+        title: {
+            text: "Nomos Energy Price",
+            textStyle: {
+                color: "#ffffff"
+            }
+        },
+        tooltip: {
+            trigger: "axis",
+            axisPointer: {
+                type: "cross"
+            }
+        },
+        grid: {
+            left: "5%",
+            right: "4%",
+            top: "5%",
+            bottom: "8%"
+        },
+        xAxis: {
+            type: "category",
+            boundaryGap: false,
+            data: xAxisData
+        },
+        yAxis: {
+            type: "value",
+            axisLabel: {
+                formatter: "{value} ct/kWh"
+            },
+            axisPointer: {
+                snap: true
+            }
+        },
+        visualMap: {
+            min: 0.2,
+            max: 0.3,
+            inRange: {
+                color: ["green", "yellow", "red"]
+            },
+            show: false
+        },
+        series: [
+            {
+                name: "Total",
+                type: "line",
+                step: "end",
+                symbol: "none",
+                data: seriesData,
+                markArea: {
+                    itemStyle: {
+                        color: "rgba(120, 200, 120, 0.2)"
+                    },
+                    data: [
+                        [
+                            { xAxis: "" },
+                            { xAxis: "" }
+                        ]
+                    ]
+                }
+            }
+        ]
+    };
+
+    const chartConfigString = JSON.stringify(chartConfig);
+
+    await this.setObjectNotExistsAsync("prices.chart_config", {
+        type: "state",
+        common: {
+            name: "Chart configuration for prices",
+            type: "string",
+            role: "json",
+            read: true,
+            write: false
+        },
+        native: {}
+    });
+
+    await this.setStateAsync("prices.chart_config", chartConfigString, true);
+}
 
     async updateCurrentPrice(): Promise<void> {
         const now = new Date();
