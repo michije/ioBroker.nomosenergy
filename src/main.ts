@@ -357,10 +357,10 @@ class Nomosenergy extends utils.Adapter {
             }
         },
         grid: {
-            left: "5%",
-            right: "4%",
-            top: "5%",
-            bottom: "8%"
+            left: "17%",
+            right: "1%",
+            top: "2%",
+            bottom: "12%"
         },
         xAxis: {
             type: "category",
