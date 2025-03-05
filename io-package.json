@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "main": "build/main.js",
     "news": {
+      "0.1.5": {
+        "en": "still trying to fix npm problems",
+        "de": "noch versuchen, npm probleme zu beheben",
+        "ru": "пытаются решить проблемы с npm",
+        "pt": "ainda tentando corrigir problemas npm",
+        "nl": "nog steeds proberen om npm problemen op te lossen",
+        "fr": "essayant toujours de résoudre les problèmes de npm",
+        "it": "ancora cercando di risolvere i problemi npm",
+        "es": "todavía tratando de solucionar problemas npm",
+        "pl": "nadal próbuje naprawić problemy npm",
+        "uk": "все ще намагається виправити проблеми npm",
+        "zh-cn": "仍在试图解决 npm 问题"
+      },
       "0.1.4": {
         "en": "still trying to fix npm problems",
         "de": "noch versuchen, npm probleme zu beheben",
@@ -80,19 +93,6 @@
         "es": "arreglar archivo principal",
         "pl": "naprawić plik główny",
         "uk": "виправити виправити файл",
-        "zh-cn": "修复主文件"
-      },
-      "0.0.3": {
-        "en": "fix main file",
-        "de": "hauptdatei reparieren",
-        "ru": "исправить основной файл",
-        "pt": "corrigir o arquivo principal",
-        "nl": "fix hoofdbestand",
-        "fr": "correction du fichier principal",
-        "it": "correzione del file principale",
-        "es": "reparar archivo principal",
-        "pl": "naprawić plik główny",
-        "uk": "виправити основний файл",
         "zh-cn": "修复主文件"
       }
     },
