@@ -101,7 +101,7 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
-### **WORK IN PROGRESS**
+### 0.1.4 (2025-03-05)
 still trying to fix npm problems
 
 ### 0.1.3 (2025-03-04)
