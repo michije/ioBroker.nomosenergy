@@ -101,6 +101,12 @@ Please refer to the [`dev-server` documentation](https://github.com/ioBroker/dev
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
+### **WORK IN PROGRESS**
+add timezone handling
+
+### 0.1.6 (2025-04-03)
+adapt to api changes
+
 ### 0.1.5 (2025-03-05)
 still trying to fix npm problems
 
