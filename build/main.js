@@ -151,7 +151,7 @@ class Nomosenergy extends utils.Adapter {
     const authString = Buffer.from(`${this.nomosConfig.client_id}:${this.nomosConfig.client_secret}`).toString("base64");
     const headers = {
       Authorization: `Basic ${authString}`,
-      "Content-Type": "application/json"
+      "Content-Type": "application/x-www-form-urlencoded"
     };
     const data = "grant_type=client_credentials";
     try {
