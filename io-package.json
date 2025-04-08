@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.1.5",
+    "version": "0.2.0",
     "main": "build/main.js",
     "news": {
+      "0.2.0": {
+        "en": "add timezone handling",
+        "de": "zeitzone handling",
+        "ru": "обработка timezone",
+        "pt": "adicionar manipulação de fuso horário",
+        "nl": "tijdzoneverwerking toevoegen",
+        "fr": "ajouter la manipulation du fuseau horaire",
+        "it": "aggiungere la gestione del fuso orario",
+        "es": "añadir el manejo de la zona horaria",
+        "pl": "dodaj obsługę strefy czasowej",
+        "uk": "додати часовий пояс",
+        "zh-cn": "添加时区处理"
+      },
       "0.1.5": {
         "en": "still trying to fix npm problems",
         "de": "noch versuchen, npm probleme zu beheben",
@@ -81,19 +94,6 @@
         "pl": "zmiana punktu końcowego z piaskownicy na prod",
         "uk": "змінити кінцеву точку з пісочниці для проду",
         "zh-cn": "从沙盒更改端点为 prod"
-      },
-      "0.0.4": {
-        "en": "fix fix main file",
-        "de": "fix hauptdatei",
-        "ru": "исправить основной файл",
-        "pt": "corrigir o arquivo principal",
-        "nl": "fix hoofdbestand",
-        "fr": "correction du fichier principal",
-        "it": "correzione file principale",
-        "es": "arreglar archivo principal",
-        "pl": "naprawić plik główny",
-        "uk": "виправити виправити файл",
-        "zh-cn": "修复主文件"
       }
     },
     "titleLang": {
