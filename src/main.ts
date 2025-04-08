@@ -160,8 +160,10 @@ class Nomosenergy extends utils.Adapter {
 
         await updateData();
 
+        // Calculate time until next hour in local Berlin time
         const now = new Date();
-        const msUntilNextHour = (60 - now.getMinutes()) * 60 * 1000 - now.getSeconds() * 1000 - now.getMilliseconds();
+        const berlinNow = this.utcToBerlin(now);
+        const msUntilNextHour = (60 - berlinNow.getMinutes()) * 60 * 1000 - berlinNow.getSeconds() * 1000 - berlinNow.getMilliseconds();
 
         setTimeout(() => {
             updateData();
@@ -190,6 +192,51 @@ class Nomosenergy extends utils.Adapter {
         } catch (e) {
             callback();
         }
+    }
+
+    /**
+     * Convert a UTC date to Berlin time (Europe/Berlin timezone)
+     * Automatically handles Daylight Saving Time (DST) changes
+     */
+    utcToBerlin(date: Date): Date {
+        const utcDate = new Date(date.toISOString());
+        
+        // Create a formatter that will output the date in Berlin timezone
+        const berlinDateFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Europe/Berlin',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false
+        });
+        
+        // Get the Berlin time components
+        const parts = berlinDateFormatter.formatToParts(utcDate);
+        const dateObj: Record<string, string> = {};
+        parts.forEach(part => {
+            if (part.type !== 'literal') {
+                dateObj[part.type] = part.value;
+            }
+        });
+        
+        // Create a new date object with Berlin time components
+        const berlinDate = new Date();
+        berlinDate.setFullYear(
+            parseInt(dateObj.year),
+            parseInt(dateObj.month) - 1, // Month is 0-indexed
+            parseInt(dateObj.day)
+        );
+        berlinDate.setHours(
+            parseInt(dateObj.hour),
+            parseInt(dateObj.minute),
+            parseInt(dateObj.second),
+            0 // Milliseconds
+        );
+        
+        return berlinDate;
     }
 
     async authenticate(): Promise<string> {
@@ -271,161 +318,169 @@ class Nomosenergy extends utils.Adapter {
     }
 
     async storePrices(priceData: PriceData): Promise<void> {
-    const today = new Date().toISOString().split("T")[0];
-    const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+        // Get today and tomorrow in Berlin timezone
+        const berlinNow = this.utcToBerlin(new Date());
+        const today = berlinNow.toISOString().split("T")[0];
+        
+        const berlinTomorrow = this.utcToBerlin(new Date(Date.now() + 86400000));
+        const tomorrow = berlinTomorrow.toISOString().split("T")[0];
 
-    await this.setObjectNotExistsAsync("prices_today", {
-        type: "channel",
-        common: { name: "Prices for today" },
-        native: {},
-    });
-
-    await this.setObjectNotExistsAsync("prices_tomorrow", {
-        type: "channel",
-        common: { name: "Prices for tomorrow" },
-        native: {},
-    });
-
-    const items = priceData.items || [];
-
-    // Store individual price states
-    for (const item of items) {
-        const timestamp = item.timestamp;
-        const dateStr = timestamp.split("T")[0];
-        const hour = new Date(timestamp).getUTCHours().toString(); // Use UTC hours
-        const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
-
-        if (folder) {
-            const stateId = `${folder}.${hour}`;
-            await this.setObjectNotExistsAsync(stateId, {
-                type: "state",
-                common: {
-                    name: `Price for hour ${hour}`,
-                    type: "number",
-                    role: "value",
-                    unit: "ct/kWh",
-                    read: true,
-                    write: false,
-                },
-                native: {},
-            });
-
-            await this.setStateAsync(stateId, item.amount, true);
-        }
-    }
-
-    // Generate chart data starting from today at 00:00 UTC
-    const chartToday = new Date();
-    chartToday.setUTCHours(0, 0, 0, 0); // Start of today in UTC
-
-    const xAxisData: string[] = [];
-    const seriesData: (number | null)[] = [];
-
-    for (let i = 0; i <= 48; i++) {
-        const currentDate = new Date(chartToday.getTime() + i * 3600000);
-        const day = currentDate.getUTCDate().toString().padStart(2, "0");
-        const month = (currentDate.getUTCMonth() + 1).toString().padStart(2, "0");
-        const hour = currentDate.getUTCHours().toString().padStart(2, "0");
-
-        xAxisData.push(`${day}.${month}.\n${hour}:00`);
-
-        const matchingItem = items.find(item => {
-            const itemDate = new Date(item.timestamp);
-            return (
-                itemDate.getUTCFullYear() === currentDate.getUTCFullYear() &&
-                itemDate.getUTCMonth() === currentDate.getUTCMonth() &&
-                itemDate.getUTCDate() === currentDate.getUTCDate() &&
-                itemDate.getUTCHours() === currentDate.getUTCHours()
-            );
+        await this.setObjectNotExistsAsync("prices_today", {
+            type: "channel",
+            common: { name: "Prices for today" },
+            native: {},
         });
 
-        seriesData.push(matchingItem ? matchingItem.amount : null);
+        await this.setObjectNotExistsAsync("prices_tomorrow", {
+            type: "channel",
+            common: { name: "Prices for tomorrow" },
+            native: {},
+        });
+
+        const items = priceData.items || [];
+
+        // Store individual price states, converting UTC to Berlin time
+        for (const item of items) {
+            const utcTimestamp = item.timestamp;
+            const berlinTime = this.utcToBerlin(new Date(utcTimestamp));
+            const dateStr = berlinTime.toISOString().split("T")[0];
+            const hour = berlinTime.getHours().toString(); // Use Berlin hours
+            
+            const folder = dateStr === today ? "prices_today" : dateStr === tomorrow ? "prices_tomorrow" : null;
+
+            if (folder) {
+                const stateId = `${folder}.${hour}`;
+                await this.setObjectNotExistsAsync(stateId, {
+                    type: "state",
+                    common: {
+                        name: `Price for hour ${hour}`,
+                        type: "number",
+                        role: "value",
+                        unit: "ct/kWh",
+                        read: true,
+                        write: false,
+                    },
+                    native: {},
+                });
+
+                await this.setStateAsync(stateId, item.amount, true);
+            }
+        }
+
+        // Generate chart data starting from today at 00:00 Berlin time
+        const chartToday = new Date(berlinNow);
+        chartToday.setHours(0, 0, 0, 0); // Start of today in Berlin time
+
+        const xAxisData: string[] = [];
+        const seriesData: (number | null)[] = [];
+
+        for (let i = 0; i <= 48; i++) {
+            const currentDate = new Date(chartToday.getTime() + i * 3600000);
+            const day = currentDate.getDate().toString().padStart(2, "0");
+            const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
+            const hour = currentDate.getHours().toString().padStart(2, "0");
+
+            xAxisData.push(`${day}.${month}.\n${hour}:00`);
+
+            // Find the matching price item by converting UTC to Berlin time
+            const matchingItem = items.find(item => {
+                const itemBerlinTime = this.utcToBerlin(new Date(item.timestamp));
+                return (
+                    itemBerlinTime.getFullYear() === currentDate.getFullYear() &&
+                    itemBerlinTime.getMonth() === currentDate.getMonth() &&
+                    itemBerlinTime.getDate() === currentDate.getDate() &&
+                    itemBerlinTime.getHours() === currentDate.getHours()
+                );
+            });
+
+            seriesData.push(matchingItem ? matchingItem.amount : null);
+        }
+
+        const chartConfig: ChartConfig = {
+            backgroundColor: "rgb(232, 232, 232)",
+            title: {
+                text: "Nomos Energy Price",
+                textStyle: {
+                    color: "#ffffff"
+                }
+            },
+            tooltip: {
+                trigger: "axis",
+                axisPointer: {
+                    type: "cross"
+                }
+            },
+            grid: {
+                left: "17%",
+                right: "1%",
+                top: "2%",
+                bottom: "12%"
+            },
+            xAxis: {
+                type: "category",
+                boundaryGap: false,
+                data: xAxisData
+            },
+            yAxis: {
+                type: "value",
+                axisLabel: {
+                    formatter: "{value} ct/kWh"
+                },
+                axisPointer: {
+                    snap: true
+                }
+            },
+            visualMap: {
+                min: 0.2,
+                max: 0.3,
+                inRange: {
+                    color: ["green", "yellow", "red"]
+                },
+                show: false
+            },
+            series: [
+                {
+                    name: "Total",
+                    type: "line",
+                    step: "end",
+                    symbol: "none",
+                    data: seriesData,
+                    markArea: {
+                        itemStyle: {
+                            color: "rgba(120, 200, 120, 0.2)"
+                        },
+                        data: [
+                            [
+                                { xAxis: "" },
+                                { xAxis: "" }
+                            ]
+                        ]
+                    }
+                }
+            ]
+        };
+
+        const chartConfigString = JSON.stringify(chartConfig);
+
+        await this.setObjectNotExistsAsync("prices.chart_config", {
+            type: "state",
+            common: {
+                name: "Chart configuration for prices",
+                type: "string",
+                role: "json",
+                read: true,
+                write: false
+            },
+            native: {}
+        });
+
+        await this.setStateAsync("prices.chart_config", chartConfigString, true);
     }
 
-    const chartConfig: ChartConfig = {
-        backgroundColor: "rgb(232, 232, 232)",
-        title: {
-            text: "Nomos Energy Price",
-            textStyle: {
-                color: "#ffffff"
-            }
-        },
-        tooltip: {
-            trigger: "axis",
-            axisPointer: {
-                type: "cross"
-            }
-        },
-        grid: {
-            left: "17%",
-            right: "1%",
-            top: "2%",
-            bottom: "12%"
-        },
-        xAxis: {
-            type: "category",
-            boundaryGap: false,
-            data: xAxisData
-        },
-        yAxis: {
-            type: "value",
-            axisLabel: {
-                formatter: "{value} ct/kWh"
-            },
-            axisPointer: {
-                snap: true
-            }
-        },
-        visualMap: {
-            min: 0.2,
-            max: 0.3,
-            inRange: {
-                color: ["green", "yellow", "red"]
-            },
-            show: false
-        },
-        series: [
-            {
-                name: "Total",
-                type: "line",
-                step: "end",
-                symbol: "none",
-                data: seriesData,
-                markArea: {
-                    itemStyle: {
-                        color: "rgba(120, 200, 120, 0.2)"
-                    },
-                    data: [
-                        [
-                            { xAxis: "" },
-                            { xAxis: "" }
-                        ]
-                    ]
-                }
-            }
-        ]
-    };
-
-    const chartConfigString = JSON.stringify(chartConfig);
-
-    await this.setObjectNotExistsAsync("prices.chart_config", {
-        type: "state",
-        common: {
-            name: "Chart configuration for prices",
-            type: "string",
-            role: "json",
-            read: true,
-            write: false
-        },
-        native: {}
-    });
-
-    await this.setStateAsync("prices.chart_config", chartConfigString, true);
-}
-
     async updateCurrentPrice(): Promise<void> {
-        const now = new Date();
-        const currentHour = now.getHours().toString();
+        // Get the current hour in Berlin time
+        const berlinNow = this.utcToBerlin(new Date());
+        const currentHour = berlinNow.getHours().toString();
         const stateId = `prices_today.${currentHour}`;
 
         await this.setObjectNotExistsAsync("prices.current_Price", {
