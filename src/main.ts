@@ -338,6 +338,8 @@ class Nomosenergy extends utils.Adapter {
         });
 
         const items = priceData.items || [];
+        const HOURS_IN_TWO_DAYS = 48;
+        const priceMap = new Map<number, number>();
 
         // Store individual price states, converting UTC to Berlin time
         for (const item of items) {
@@ -365,6 +367,9 @@ class Nomosenergy extends utils.Adapter {
 
                 await this.setStateAsync(stateId, item.amount, true);
             }
+
+            // Store the value keyed by Berlin timestamp for quick lookup later
+            priceMap.set(berlinTime.getTime(), item.amount);
         }
 
         // Generate chart data starting from today at 00:00 Berlin time
@@ -374,7 +379,7 @@ class Nomosenergy extends utils.Adapter {
         const xAxisData: string[] = [];
         const seriesData: (number | null)[] = [];
 
-        for (let i = 0; i <= 48; i++) {
+        for (let i = 0; i < HOURS_IN_TWO_DAYS; i++) {
             const currentDate = new Date(chartToday.getTime() + i * 3600000);
             const day = currentDate.getDate().toString().padStart(2, "0");
             const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
@@ -382,18 +387,9 @@ class Nomosenergy extends utils.Adapter {
 
             xAxisData.push(`${day}.${month}.\n${hour}:00`);
 
-            // Find the matching price item by converting UTC to Berlin time
-            const matchingItem = items.find(item => {
-                const itemBerlinTime = this.utcToBerlin(new Date(item.timestamp));
-                return (
-                    itemBerlinTime.getFullYear() === currentDate.getFullYear() &&
-                    itemBerlinTime.getMonth() === currentDate.getMonth() &&
-                    itemBerlinTime.getDate() === currentDate.getDate() &&
-                    itemBerlinTime.getHours() === currentDate.getHours()
-                );
-            });
-
-            seriesData.push(matchingItem ? matchingItem.amount : null);
+            // Lookup the price directly using the timestamp map
+            const value = priceMap.get(currentDate.getTime());
+            seriesData.push(value !== undefined ? value : null);
         }
 
         const chartConfig: ChartConfig = {
