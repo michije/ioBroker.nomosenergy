@@ -224,6 +224,8 @@ class Nomosenergy extends utils.Adapter {
       native: {}
     });
     const items = priceData.items || [];
+    const HOURS_IN_TWO_DAYS = 48;
+    const priceMap = /* @__PURE__ */ new Map();
     for (const item of items) {
       const utcTimestamp = item.timestamp;
       const berlinTime = this.utcToBerlin(new Date(utcTimestamp));
@@ -246,23 +248,21 @@ class Nomosenergy extends utils.Adapter {
         });
         await this.setStateAsync(stateId, item.amount, true);
       }
+      priceMap.set(berlinTime.getTime(), item.amount);
     }
     const chartToday = new Date(berlinNow);
     chartToday.setHours(0, 0, 0, 0);
     const xAxisData = [];
     const seriesData = [];
-    for (let i = 0; i <= 48; i++) {
+    for (let i = 0; i < HOURS_IN_TWO_DAYS; i++) {
       const currentDate = new Date(chartToday.getTime() + i * 36e5);
       const day = currentDate.getDate().toString().padStart(2, "0");
       const month = (currentDate.getMonth() + 1).toString().padStart(2, "0");
       const hour = currentDate.getHours().toString().padStart(2, "0");
       xAxisData.push(`${day}.${month}.
 ${hour}:00`);
-      const matchingItem = items.find((item) => {
-        const itemBerlinTime = this.utcToBerlin(new Date(item.timestamp));
-        return itemBerlinTime.getFullYear() === currentDate.getFullYear() && itemBerlinTime.getMonth() === currentDate.getMonth() && itemBerlinTime.getDate() === currentDate.getDate() && itemBerlinTime.getHours() === currentDate.getHours();
-      });
-      seriesData.push(matchingItem ? matchingItem.amount : null);
+      const value = priceMap.get(currentDate.getTime());
+      seriesData.push(value !== void 0 ? value : null);
     }
     const chartConfig = {
       backgroundColor: "rgb(232, 232, 232)",
