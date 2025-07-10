@@ -80,7 +80,7 @@ Since you installed the release script, you can create a new
 	Placeholder for the next version (at the beginning of the line):
 	### **WORK IN PROGRESS**
 -->
-### **WORK IN PROGRESS**
+### 0.2.1 (2025-07-10)
 fix minor bugs+bumps
 
 ### 0.2.0 (2025-04-08)

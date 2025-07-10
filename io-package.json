@@ -1,9 +1,22 @@
 {
   "common": {
     "name": "nomosenergy",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "main": "build/main.js",
     "news": {
+      "0.2.1": {
+        "en": "fix minor bugs+bumps",
+        "de": "kleinere bugs+bumps beheben",
+        "ru": "устранение мелких багов+бампов",
+        "pt": "corrigir erros menores+bombas",
+        "nl": "kleine bugs+bumps herstellen",
+        "fr": "correction de bugs mineurs+bumps",
+        "it": "correzione di bug minori+bumps",
+        "es": "corregir errores menores + bombas",
+        "pl": "naprawić drobne błędy + guzki",
+        "uk": "фіксувати незначні помилки+бам",
+        "zh-cn": "修补小错误+bumps"
+      },
       "0.2.0": {
         "en": "add timezone handling",
         "de": "zeitzone handling",
@@ -81,19 +94,6 @@
         "pl": "ustaw tematy osiowania",
         "uk": "виправлено теми вирівнювання",
         "zh-cn": "固定对齐话题"
-      },
-      "0.1.0": {
-        "en": "change endpoint from sandbox to prod",
-        "de": "endpunkt von sandbox zu prod",
-        "ru": "изменить конечную точку с песочницы на prod",
-        "pt": "mudança endpoint de sandbox para prod",
-        "nl": "verandering eindpunt van sandbox naar prod",
-        "fr": "changer le paramètre de la boîte à sable en prod",
-        "it": "cambiare endpoint da sandbox a prod",
-        "es": "cambiar punto final de sandbox a prod",
-        "pl": "zmiana punktu końcowego z piaskownicy na prod",
-        "uk": "змінити кінцеву точку з пісочниці для проду",
-        "zh-cn": "从沙盒更改端点为 prod"
       }
     },
     "titleLang": {
