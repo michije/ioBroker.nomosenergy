@@ -30,6 +30,10 @@ class Nomosenergy extends utils.Adapter {
   get nomosConfig() {
     return this.config;
   }
+  /**
+   * Constructor for the Nomosenergy adapter.
+   * @param options - Adapter options passed from ioBroker.
+   */
   constructor(options = {}) {
     super({
       ...options,
@@ -38,6 +42,9 @@ class Nomosenergy extends utils.Adapter {
     this.on("ready", this.onReady.bind(this));
     this.on("unload", this.onUnload.bind(this));
   }
+  /**
+   * Called when the adapter is ready to start. Initializes states, sets up updates, and schedules periodic fetching of price data.
+   */
   async onReady() {
     await this.setObjectNotExistsAsync("info.last_update_time", {
       type: "state",
@@ -90,6 +97,11 @@ class Nomosenergy extends utils.Adapter {
       this.hourlyUpdateInterval = setInterval(this.updateCurrentPrice.bind(this), 60 * 60 * 1e3);
     }, msUntilNextHour);
   }
+  /**
+   * Called when the adapter is being unloaded/stopped.
+   * Cleans up intervals and calls the callback.
+   * @param callback - Function to call when unloading is complete.
+   */
   onUnload(callback) {
     try {
       if (this.updateInterval) {
@@ -144,6 +156,11 @@ class Nomosenergy extends utils.Adapter {
     );
     return berlinDate;
   }
+  /**
+   * Authenticates with the Nomos Energy API using client credentials (OAuth2).
+   * @returns Access token string.
+   * @throws Error if client ID/secret not configured or authentication fails.
+   */
   async authenticate() {
     if (!this.nomosConfig.client_id || !this.nomosConfig.client_secret) {
       throw new Error("Client ID or Client Secret not configured");
@@ -168,6 +185,12 @@ class Nomosenergy extends utils.Adapter {
       throw new Error(`Authentication failed: ${error.message}`);
     }
   }
+  /**
+   * Retrieves the first subscription ID from the Nomos Energy API.
+   * @param token - Access token for API authentication.
+   * @returns Subscription ID string.
+   * @throws Error if no subscriptions found or API request fails.
+   */
   async getSubscriptionId(token) {
     const headers = {
       Authorization: `Bearer ${token}`
@@ -188,6 +211,13 @@ class Nomosenergy extends utils.Adapter {
       throw new Error(`Failed to fetch subscriptions: ${error.message}`);
     }
   }
+  /**
+   * Fetches price series data for today and tomorrow from the Nomos Energy API.
+   * @param token - Access token for API authentication.
+   * @param subscriptionId - Subscription ID to get prices for.
+   * @returns Price data containing array of price items with timestamps and amounts.
+   * @throws Error if API request fails.
+   */
   async getPriceSeries(token, subscriptionId) {
     const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
     const tomorrow = new Date(Date.now() + 864e5).toISOString().split("T")[0];
@@ -208,6 +238,11 @@ class Nomosenergy extends utils.Adapter {
       throw new Error(`Failed to fetch price series: ${error.message}`);
     }
   }
+  /**
+   * Stores price data as ioBroker states for today and tomorrow, creates channels if needed,
+   * converts UTC timestamps to Berlin time, and generates ECharts configuration for visualization.
+   * @param priceData - Price data object containing array of price items.
+   */
   async storePrices(priceData) {
     const berlinNow = this.utcToBerlin(/* @__PURE__ */ new Date());
     const today = berlinNow.toISOString().split("T")[0];
@@ -341,6 +376,10 @@ ${hour}:00`);
     });
     await this.setStateAsync("prices.chart_config", chartConfigString, true);
   }
+  /**
+   * Updates the current price state based on the current Berlin hour.
+   * Retrieves the price for the current hour from prices_today states and sets prices.current_Price.
+   */
   async updateCurrentPrice() {
     const berlinNow = this.utcToBerlin(/* @__PURE__ */ new Date());
     const currentHour = berlinNow.getHours().toString();

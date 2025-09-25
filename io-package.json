@@ -30,32 +30,7 @@
         "uk": "додати часовий пояс",
         "zh-cn": "添加时区处理"
       },
-      "0.1.5": {
-        "en": "still trying to fix npm problems",
-        "de": "noch versuchen, npm probleme zu beheben",
-        "ru": "пытаются решить проблемы с npm",
-        "pt": "ainda tentando corrigir problemas npm",
-        "nl": "nog steeds proberen om npm problemen op te lossen",
-        "fr": "essayant toujours de résoudre les problèmes de npm",
-        "it": "ancora cercando di risolvere i problemi npm",
-        "es": "todavía tratando de solucionar problemas npm",
-        "pl": "nadal próbuje naprawić problemy npm",
-        "uk": "все ще намагається виправити проблеми npm",
-        "zh-cn": "仍在试图解决 npm 问题"
-      },
-      "0.1.4": {
-        "en": "still trying to fix npm problems",
-        "de": "noch versuchen, npm probleme zu beheben",
-        "ru": "пытаются решить проблемы с npm",
-        "pt": "ainda tentando corrigir problemas npm",
-        "nl": "nog steeds proberen om npm problemen op te lossen",
-        "fr": "essayant toujours de résoudre les problèmes de npm",
-        "it": "ancora cercando di risolvere i problemi npm",
-        "es": "todavía tratando de solucionar problemas npm",
-        "pl": "nadal próbuje naprawić problemy npm",
-        "uk": "все ще намагається виправити проблеми npm",
-        "zh-cn": "仍在试图解决 npm 问题"
-      },
+
       "0.1.3": {
         "en": "re-create package lock",
         "de": "paketverriegelung neu erstellen",
@@ -169,5 +144,71 @@
     "client_secret"
   ],
   "objects": [],
-  "instanceObjects": []
+  "instanceObjects": [
+    {
+      "_id": "info.last_update_time",
+      "type": "state",
+      "common": {
+        "name": "Last update time",
+        "type": "string",
+        "role": "date",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "info.last_update_success",
+      "type": "state",
+      "common": {
+        "name": "Last update success",
+        "type": "boolean",
+        "role": "indicator",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "prices_today",
+      "type": "channel",
+      "common": {
+        "name": "Prices for today"
+      },
+      "native": {}
+    },
+    {
+      "_id": "prices_tomorrow",
+      "type": "channel",
+      "common": {
+        "name": "Prices for tomorrow"
+      },
+      "native": {}
+    },
+    {
+      "_id": "prices.current_Price",
+      "type": "state",
+      "common": {
+        "name": "Current price",
+        "type": "number",
+        "role": "value",
+        "unit": "ct/kWh",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    },
+    {
+      "_id": "prices.chart_config",
+      "type": "state",
+      "common": {
+        "name": "Chart configuration for prices",
+        "type": "string",
+        "role": "json",
+        "read": true,
+        "write": false
+      },
+      "native": {}
+    }
+  ]
 }

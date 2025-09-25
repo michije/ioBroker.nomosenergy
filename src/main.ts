@@ -98,15 +98,23 @@ interface ChartConfig {
     }[];
 }
 
+/**
+ * Main adapter class for ioBroker Nomos Energy integration.
+ * Fetches hourly electricity prices from Nomos Energy API and creates ioBroker states.
+ */
 class Nomosenergy extends utils.Adapter {
     private updateInterval: NodeJS.Timeout | null = null;
     private hourlyUpdateInterval: NodeJS.Timeout | null = null;
-    
+
     // Access config as a general object with string indexing to bypass type checks
     private get nomosConfig(): NomosEnergyAdapterConfig {
         return this.config as any;
     }
 
+    /**
+     * Constructor for the Nomosenergy adapter.
+     * @param options - Adapter options passed from ioBroker.
+     */
     constructor(options: Partial<utils.AdapterOptions> = {}) {
         super({
             ...options,
@@ -117,6 +125,9 @@ class Nomosenergy extends utils.Adapter {
         this.on("unload", this.onUnload.bind(this));
     }
 
+    /**
+     * Called when the adapter is ready to start. Initializes states, sets up updates, and schedules periodic fetching of price data.
+     */
     async onReady(): Promise<void> {
         await this.setObjectNotExistsAsync("info.last_update_time", {
             type: "state",
@@ -178,6 +189,11 @@ class Nomosenergy extends utils.Adapter {
         }, msUntilNextHour);
     }
 
+    /**
+     * Called when the adapter is being unloaded/stopped.
+     * Cleans up intervals and calls the callback.
+     * @param callback - Function to call when unloading is complete.
+     */
     onUnload(callback: () => void): void {
         try {
             if (this.updateInterval) {
@@ -239,6 +255,11 @@ class Nomosenergy extends utils.Adapter {
         return berlinDate;
     }
 
+    /**
+     * Authenticates with the Nomos Energy API using client credentials (OAuth2).
+     * @returns Access token string.
+     * @throws Error if client ID/secret not configured or authentication fails.
+     */
     async authenticate(): Promise<string> {
         if (!this.nomosConfig.client_id || !this.nomosConfig.client_secret) {
             throw new Error("Client ID or Client Secret not configured");
@@ -268,6 +289,12 @@ class Nomosenergy extends utils.Adapter {
         }
     }
 
+    /**
+     * Retrieves the first subscription ID from the Nomos Energy API.
+     * @param token - Access token for API authentication.
+     * @returns Subscription ID string.
+     * @throws Error if no subscriptions found or API request fails.
+     */
     async getSubscriptionId(token: string): Promise<string> {
         const headers = {
             Authorization: `Bearer ${token}`,
@@ -292,6 +319,13 @@ class Nomosenergy extends utils.Adapter {
         }
     }
 
+    /**
+     * Fetches price series data for today and tomorrow from the Nomos Energy API.
+     * @param token - Access token for API authentication.
+     * @param subscriptionId - Subscription ID to get prices for.
+     * @returns Price data containing array of price items with timestamps and amounts.
+     * @throws Error if API request fails.
+     */
     async getPriceSeries(token: string, subscriptionId: string): Promise<PriceData> {
         const today = new Date().toISOString().split("T")[0];
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
@@ -317,6 +351,11 @@ class Nomosenergy extends utils.Adapter {
         }
     }
 
+    /**
+     * Stores price data as ioBroker states for today and tomorrow, creates channels if needed,
+     * converts UTC timestamps to Berlin time, and generates ECharts configuration for visualization.
+     * @param priceData - Price data object containing array of price items.
+     */
     async storePrices(priceData: PriceData): Promise<void> {
         // Get today and tomorrow in Berlin timezone
         const berlinNow = this.utcToBerlin(new Date());
@@ -473,6 +512,10 @@ class Nomosenergy extends utils.Adapter {
         await this.setStateAsync("prices.chart_config", chartConfigString, true);
     }
 
+    /**
+     * Updates the current price state based on the current Berlin hour.
+     * Retrieves the price for the current hour from prices_today states and sets prices.current_Price.
+     */
     async updateCurrentPrice(): Promise<void> {
         // Get the current hour in Berlin time
         const berlinNow = this.utcToBerlin(new Date());
