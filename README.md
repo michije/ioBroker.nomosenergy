@@ -114,6 +114,8 @@ For advanced integration examples, see [docs/USAGE.md](docs/USAGE.md).
 
 ## Changelog
 
+### **WORK IN PROGRESS**
+
 ### 0.2.1 (2025-07-10)
 - Fixed minor bugs and dependency updates.
 
