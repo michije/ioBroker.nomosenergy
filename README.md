@@ -113,8 +113,7 @@ For advanced integration examples, see [docs/USAGE.md](docs/USAGE.md).
 - Consult the [ioBroker Community](https://forum.iobroker.net) forum.
 
 ## Changelog
-
-### **WORK IN PROGRESS**
+### 0.3.0 (2025-09-25)
 - Clean up docs
 
 ### 0.2.1 (2025-07-10)
